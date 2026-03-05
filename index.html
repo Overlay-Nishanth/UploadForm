@@ -6,6 +6,7 @@
 <title>AR Magnet Video Upload</title>
 
 <style>
+/* ... (Your existing styles) ... */
 body {
   margin: 0;
   font-family: Arial, sans-serif;
@@ -26,12 +27,9 @@ body {
   box-shadow: 0 0 20px rgba(0,0,0,0.6);
 }
 
-h2 {
-  margin-bottom: 20px;
-}
+h2 { margin-bottom: 20px; }
 
-input[type="text"],
-input[type="file"] {
+input[type="text"], input[type="file"] {
   width: 100%;
   padding: 10px;
   margin: 10px 0;
@@ -51,14 +49,9 @@ button {
   transition: 0.3s;
 }
 
-button:hover {
-  background: #00cc77;
-}
+button:hover { background: #00cc77; }
 
-#status {
-  margin-top: 15px;
-  font-size: 14px;
-}
+#status { margin-top: 15px; font-size: 14px; }
 
 .progress {
   width: 100%;
@@ -77,157 +70,149 @@ button:hover {
   transition: width 0.3s;
 }
 
-.product-box{
+.product-box {
   background:#000;
   padding:10px;
   border-radius:6px;
   margin-bottom:10px;
   font-weight:bold;
 }
+
+/* Style for the 'Action Disabled' Toast */
+#toast {
+  visibility: hidden;
+  min-width: 200px;
+  background-color: #ff3333;
+  color: #fff;
+  text-align: center;
+  border-radius: 4px;
+  padding: 10px;
+  position: fixed;
+  z-index: 1;
+  bottom: 30px;
+  font-size: 14px;
+}
+
+#toast.show {
+  visibility: visible;
+  animation: fadein 0.5s, fadeout 0.5s 2.5s;
+}
+
+@keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+@keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
 </style>
 </head>
 
 <body>
 
 <div class="container">
-
-<h2>Upload Your AR Memory</h2>
-
-<div class="product-box">
-Product ID: <span id="productLabel">Loading...</span>
+  <h2>Upload Your AR Memory</h2>
+  <div class="product-box">
+    Product ID: <span id="productLabel">Loading...</span>
+  </div>
+  <input type="hidden" id="productId">
+  <input type="file" id="videoFile" accept="video/*">
+  <button onclick="uploadVideo()">Upload Video</button>
+  <div class="progress" id="progressBox">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+  <div id="status"></div>
 </div>
 
-<input type="hidden" id="productId">
-
-<input type="file" id="videoFile" accept="video/*">
-
-<button onclick="uploadVideo()">Upload Video</button>
-
-<div class="progress" id="progressBox">
-<div class="progress-bar" id="progressBar"></div>
-</div>
-
-<div id="status"></div>
-
-</div>
+<div id="toast">Action Disabled</div>
 
 <script>
-
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyZ8QA9H-1tD6P1exSj4UX-kupANKjQDJ_W3_t6jnTaaqH7IcGR5Ye1lBM9pLnygySBuA/exec";
-
-// AUTO GET PRODUCT ID FROM URL
-window.onload = function () {
-
-const urlParams = new URLSearchParams(window.location.search);
-const productId = urlParams.get("product");
-
-if(productId){
-
-document.getElementById("productId").value = productId;
-document.getElementById("productLabel").innerText = productId;
-
-}else{
-
-document.getElementById("status").innerHTML =
-"Invalid link. Product ID missing.";
-
+// --- SECURITY SCRIPT ---
+function showToast(message) {
+  const toast = document.getElementById("toast");
+  toast.innerText = message;
+  toast.className = "show";
+  setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
 }
 
-};
+// Disable right-click
+document.addEventListener('contextmenu', event => event.preventDefault());
 
-
-function uploadVideo() {
-
-const productId = document.getElementById("productId").value;
-const file = document.getElementById("videoFile").files[0];
-const statusDiv = document.getElementById("status");
-const progressBox = document.getElementById("progressBox");
-const progressBar = document.getElementById("progressBar");
-
-if (!productId || !file) {
-
-statusDiv.innerHTML = "Please select a video.";
-return;
-
-}
-
-if (file.size > 10 * 1024 * 1024) {
-
-statusDiv.innerHTML = "Video must be under 10MB.";
-return;
-
-}
-
-statusDiv.innerHTML = "Processing...";
-progressBox.style.display = "block";
-progressBar.style.width = "10%";
-
-const reader = new FileReader();
-
-reader.onload = async function() {
-
-progressBar.style.width = "40%";
-
-const base64Data = reader.result.split(',')[1];
-
-try {
-
-const response = await fetch(WEB_APP_URL, {
-
-method: "POST",
-body: JSON.stringify({
-
-productId: productId,
-file: base64Data,
-fileName: file.name
-
-})
-
+// Disable specific keys
+document.addEventListener("keydown", function(e) {
+  if (
+    e.key === "F12" || 
+    (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "C")) || 
+    (e.ctrlKey && e.key === "u")
+  ) {
+    e.preventDefault();
+    showToast('Action Disabled');
+  }
 });
 
-progressBar.style.width = "80%";
+// --- UPLOAD LOGIC ---
+const WEB_APP_URL = "YOUR_APPS_SCRIPT_URL_HERE";
 
-const result = await response.json();
-
-if (result.status === "success") {
-
-progressBar.style.width = "100%";
-
-statusDiv.innerHTML =
-"Upload Successful!<br>" +
-"Uploads Used: " + result.uploadCount +
-"<br>Remaining: " + result.remaining;
-
-}
-
-else if (result.status === "blocked") {
-
-progressBar.style.display = "none";
-
-statusDiv.innerHTML =
-"Upload limit reached (3 lifetime uploads used).<br>" +
-"Contact support for upgrade.";
-
-}
-
-else {
-
-statusDiv.innerHTML = "Error: " + result.message;
-
-}
-
-} catch (error) {
-
-statusDiv.innerHTML = "Upload failed. Try again.";
-
-}
-
+window.onload = function () {
+  const urlParams = new URLSearchParams(window.location.search);
+  const productId = urlParams.get("product");
+  if(productId){
+    document.getElementById("productId").value = productId;
+    document.getElementById("productLabel").innerText = productId;
+  } else {
+    document.getElementById("status").innerHTML = "Invalid link. Product ID missing.";
+  }
 };
 
-reader.readAsDataURL(file);
+function uploadVideo() {
+  const productId = document.getElementById("productId").value;
+  const file = document.getElementById("videoFile").files[0];
+  const statusDiv = document.getElementById("status");
+  const progressBox = document.getElementById("progressBox");
+  const progressBar = document.getElementById("progressBar");
 
+  if (!productId || !file) {
+    statusDiv.innerHTML = "Please select a video.";
+    return;
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    statusDiv.innerHTML = "Video must be under 10MB.";
+    return;
+  }
+
+  statusDiv.innerHTML = "Processing...";
+  progressBox.style.display = "block";
+  progressBar.style.width = "10%";
+
+  const reader = new FileReader();
+  reader.onload = async function() {
+    progressBar.style.width = "40%";
+    const base64Data = reader.result.split(',')[1];
+
+    try {
+      const response = await fetch(WEB_APP_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          productId: productId,
+          file: base64Data,
+          fileName: file.name
+        })
+      });
+
+      progressBar.style.width = "80%";
+      const result = await response.json();
+
+      if (result.status === "success") {
+        progressBar.style.width = "100%";
+        statusDiv.innerHTML = "Upload Successful!<br>Used: " + result.uploadCount + "<br>Remaining: " + result.remaining;
+      } else if (result.status === "blocked") {
+        progressBar.style.display = "none";
+        statusDiv.innerHTML = "Upload limit reached. Contact support.";
+      } else {
+        statusDiv.innerHTML = "Error: " + result.message;
+      }
+    } catch (error) {
+      statusDiv.innerHTML = "Upload failed. Try again.";
+    }
+  };
+  reader.readAsDataURL(file);
 }
-
 </script>
 
 </body>
